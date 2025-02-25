@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Oil</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #000;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 320px;
+            height: 480px;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #0a2e38, #000913);
+            border-radius: 10px;
+        }
+        
+        #game {
+            width: 100%;
+            height: 100%;
+        }
+        
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 40px;
+            color: white;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+        
+	#start-screen {
+   	 position: absolute;
+   	 top: 0;
+   	 left: 0;
+   	 width: 100%;
+   	 height: 100%;
+   	 display: flex;
+    	 flex-direction: column;
+    	 justify-content: flex-end; /* Mantém o botão "INICIAR" na parte inferior */
+   	 align-items: center;
+   	 background-image: url('menu.jpg');
+   	 background-size: contain; /* Experimente 'contain' se preferir evitar cortes (cover) */
+   	 background-position: center;
+   	 background-repeat: no-repeat;
+   	 background-color: #1e90ff; /* Cor de fundo para bordas, se usar contain */
+   	 z-index: 20;
+}
+        
+        #menu-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        #title {
+            display: none;
+        }
+        
+        #start-button {
+            position: relative;
+            z-index: 21;
+            padding: 12px 40px;
+            font-size: 26px;
+            background-color: #f8c100;
+            color: #0a2e38;
+            border: 3px solid #000;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            transition: transform 0.1s;
+            margin-bottom: 30px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        #start-button:active {
+            transform: scale(0.95);
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 15;
+        }
+        
+        #game-over-text {
+            font-size: 40px;
+            color: #f85a3e;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            margin-bottom: 10px;
+        }
+        
+        #final-score {
+            font-size: 32px;
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        #restart-button {
+            padding: 10px 20px;
+            font-size: 24px;
+            background-color: #f8c100;
+            color: #0a2e38;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.1s;
+        }
+        
+        #restart-button:active {
+            transform: scale(0.95);
+        }
+        
+        .bubble {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            animation: bubble-rise linear;
+        }
+        
+        @keyframes bubble-rise {
+            0% { transform: translateY(0) translateX(0); }
+            100% { transform: translateY(-480px) translateX(20px); }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <svg id="game" viewBox="0 0 320 480" preserveAspectRatio="xMidYMid meet">
+            <!-- Background gradient -->
+            <defs>
+                <linearGradient id="water" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#40d0e0" />
+                    <stop offset="100%" stop-color="#084a60" />
+                </linearGradient>
+                <linearGradient id="pipe" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#333333" />
+                    <stop offset="50%" stop-color="#666666" />
+                    <stop offset="100%" stop-color="#333333" />
+                </linearGradient>
+                <radialGradient id="oil-gradient" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
+                    <stop offset="0%" stop-color="#f8c100" />
+                    <stop offset="70%" stop-color="#f8a100" />
+                    <stop offset="100%" stop-color="#f88300" />
+                </radialGradient>
+            </defs>
+            
+            <!-- Background Image -->
+            <image x="0" y="0" width="100%" height="100%" xlink:href="background.jpg" preserveAspectRatio="xMidYMid slice" />
+            
+            <!-- Underwater rocks at the bottom -->
+            <path d="M0,450 Q20,440 40,450 Q60,460 80,450 Q100,440 120,450 Q140,460 160,450 Q180,440 200,450 Q220,460 240,450 Q260,440 280,450 Q300,460 320,450 L320,480 L0,480 Z" 
+                  fill="#1a3a42" />
+                  
+            <!-- Underwater plants -->
+            <path d="M50,450 C45,430 55,430 50,410 C45,430 35,430 50,450" fill="#2a6a5a" />
+            <path d="M150,450 C145,420 155,420 150,390 C145,420 135,420 150,450" fill="#2a6a5a" />
+            <path d="M250,450 C245,430 255,430 250,410 C245,430 235,430 250,450" fill="#2a6a5a" />
+            
+            <!-- Pipes Group -->
+            <g id="pipes"></g>
+            
+            <!-- Player (oil droplet) -->
+            <g id="player" transform="translate(80, 240)">
+                <!-- Corpo da gotinha (preta) -->
+                <ellipse cx="0" cy="0" rx="15" ry="20" fill="#000000" />
+                
+                <!-- Reflexo na gotinha -->
+                <ellipse cx="-5" cy="-8" rx="5" ry="3" fill="rgba(255, 255, 255, 0.3)" />
+                
+                <!-- Carinha -->
+                <circle cx="-4" cy="-2" r="2" fill="white" /> <!-- Olho esquerdo -->
+                <circle cx="4" cy="-2" r="2" fill="white" /> <!-- Olho direito -->
+                <path d="M-4,5 Q0,8 4,5" stroke="white" fill="transparent" stroke-width="1.5" /> <!-- Sorriso -->
+                
+                <!-- Bracinhos -->
+                <path d="M-12,-3 Q-18,-8 -22,-5" stroke="#000000" fill="transparent" stroke-width="2" stroke-linecap="round" /> <!-- Braço esquerdo -->
+                <path d="M12,-3 Q18,-8 22,-5" stroke="#000000" fill="transparent" stroke-width="2" stroke-linecap="round" /> <!-- Braço direito -->
+                
+                <!-- Perninhas -->
+                <path d="M-7,15 Q-12,22 -10,25" stroke="#000000" fill="transparent" stroke-width="2" stroke-linecap="round" /> <!-- Perna esquerda -->
+                <path d="M7,15 Q12,22 10,25" stroke="#000000" fill="transparent" stroke-width="2" stroke-linecap="round" /> <!-- Perna direita -->
+            </g>
+        </svg>
+        
+        <div id="score">0</div>
+        
+        <div id="start-screen" style="background-image: url('menu.jpg'); background-size: cover;">
+            <div id="title">Flappy Oil</div>
+            <button id="start-button">Iniciar</button>
+        </div>
+        
+        <div id="game-over">
+            <div id="game-over-text">Game Over</div>
+            <div id="final-score">Pontuação: 0</div>
+            <button id="restart-button">Jogar Novamente</button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Game elements
+            const game = document.getElementById('game');
+            const player = document.getElementById('player');
+            const pipesContainer = document.getElementById('pipes');
+            const scoreDisplay = document.getElementById('score');
+            const startScreen = document.getElementById('start-screen');
+            const startButton = document.getElementById('start-button');
+            const gameOverScreen = document.getElementById('game-over');
+            const finalScoreDisplay = document.getElementById('final-score');
+            const restartButton = document.getElementById('restart-button');
+            const gameContainer = document.getElementById('game-container');
+            
+            // Game variables
+            let gameRunning = false;
+            let score = 0;
+            let gravity = 0.1; // Reduzido para 0.1 conforme solicitado
+            let velocity = 0;
+            let playerY = 240;
+            let pipeInterval;
+            let animationFrame;
+            let pipes = [];
+            let passedPipes = [];
+            
+            // Game settings
+            const gameWidth = 320;
+            const gameHeight = 480;
+            const pipeWidth = 60;
+            const pipeGap = 160; // Aumentado para facilitar a passagem
+            const pipeSpeed = 1.5; // Reduzido para movimento mais lento dos obstáculos
+            const pipeSpawnTime = 2500; // 2.5 segundos (um pouco mais lento)
+            
+            // Create bubbles effect
+            function createBubbles() {
+                if (!gameRunning) return;
+                
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                
+                const size = Math.random() * 15 + 5;
+                const left = Math.random() * gameWidth;
+                const duration = Math.random() * 10 + 5;
+                
+                bubble.style.width = `${size}px`;
+                bubble.style.height = `${size}px`;
+                bubble.style.left = `${left}px`;
+                bubble.style.bottom = '0';
+                bubble.style.animationDuration = `${duration}s`;
+                
+                gameContainer.appendChild(bubble);
+                
+                // Remove bubble after animation completes
+                setTimeout(() => {
+                    if (bubble.parentNode === gameContainer) {
+                        gameContainer.removeChild(bubble);
+                    }
+                }, duration * 1000);
+            }
+            
+            // Start creating bubbles periodically
+            let bubbleInterval;
+            
+            function startBubbles() {
+                bubbleInterval = setInterval(createBubbles, 500);
+            }
+            
+            function stopBubbles() {
+                clearInterval(bubbleInterval);
+                // Remove existing bubbles
+                document.querySelectorAll('.bubble').forEach(bubble => {
+                    bubble.parentNode.removeChild(bubble);
+                });
+            }
+            
+            // Initialize game
+            function init() {
+                startButton.addEventListener('click', startGame);
+                restartButton.addEventListener('click', startGame);
+                window.addEventListener('keydown', handleKeyDown);
+                game.addEventListener('click', handleClick);
+                game.addEventListener('touchstart', handleClick);
+            }
+            
+            // Start or restart game
+            function startGame() {
+                // Reset game state
+                gameRunning = true;
+                score = 0;
+                velocity = 0;
+                playerY = 240;
+                scoreDisplay.textContent = '0';
+                
+                // Clear previous game elements
+                clearPipes();
+                
+                // Hide screens
+                startScreen.style.display = 'none';
+                gameOverScreen.style.display = 'none';
+                
+                // Position player
+                updatePlayerPosition();
+                
+                // Start game loops
+                startGameLoop();
+                startPipeGeneration();
+                startBubbles();
+                
+                // Garantir que a janela tenha foco para capturar eventos de teclado
+                window.focus();
+            }
+            
+            // Game loop
+            function gameLoop() {
+                if (!gameRunning) return;
+                
+                // Apply gravity
+                velocity += gravity;
+                playerY += velocity;
+                
+                // Update player position
+                updatePlayerPosition();
+                
+                // Move pipes
+                movePipes();
+                
+                // Check collisions
+                if (checkCollisions()) {
+                    endGame();
+                    return;
+                }
+                
+                // Update score
+                updateScore();
+                
+                // Continue loop
+                animationFrame = requestAnimationFrame(gameLoop);
+            }
+            
+            function startGameLoop() {
+                animationFrame = requestAnimationFrame(gameLoop);
+            }
+            
+            // Generate pipes
+            function generatePipes() {
+                if (!gameRunning) return;
+                
+                // Calculate random height for top pipe
+                const minHeight = 50;
+                const maxHeight = gameHeight - pipeGap - minHeight;
+                const topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+                const bottomHeight = gameHeight - topHeight - pipeGap;
+                
+                // Create SVG for top pipe
+                const topPipe = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                topPipe.innerHTML = `
+                    <rect x="0" y="0" width="${pipeWidth}" height="${topHeight}" fill="url(#pipe)" />
+                    <rect x="-5" y="${topHeight - 20}" width="${pipeWidth + 10}" height="20" fill="url(#pipe)" rx="5" ry="5" />
+                `;
+                
+                // Create SVG for bottom pipe
+                const bottomPipe = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                bottomPipe.innerHTML = `
+                    <rect x="0" y="${gameHeight - bottomHeight}" width="${pipeWidth}" height="${bottomHeight}" fill="url(#pipe)" />
+                    <rect x="-5" y="${gameHeight - bottomHeight}" width="${pipeWidth + 10}" height="20" fill="url(#pipe)" rx="5" ry="5" />
+                `;
+                
+                // Position the pipe groups at the right edge of the screen
+                topPipe.setAttribute('transform', `translate(${gameWidth}, 0)`);
+                bottomPipe.setAttribute('transform', `translate(${gameWidth}, 0)`);
+                
+                // Add pipes to container
+                pipesContainer.appendChild(topPipe);
+                pipesContainer.appendChild(bottomPipe);
+                
+                // Track pipes
+                const pipeData = {
+                    x: gameWidth,
+                    topPipe: topPipe,
+                    bottomPipe: bottomPipe,
+                    topHeight: topHeight,
+                    passed: false
+                };
+                
+                pipes.push(pipeData);
+            }
+            
+            function startPipeGeneration() {
+                // Generate first pipe immediately
+                generatePipes();
+                // Then continue at intervals
+                pipeInterval = setInterval(generatePipes, pipeSpawnTime);
+            }
+            
+            // Move pipes
+            function movePipes() {
+                for (let i = 0; i < pipes.length; i++) {
+                    const pipe = pipes[i];
+                    pipe.x -= pipeSpeed;
+                    
+                    // Atualize a posição completa em vez de aplicar apenas o movimento incremental
+                    pipe.topPipe.setAttribute('transform', `translate(${pipe.x}, 0)`);
+                    pipe.bottomPipe.setAttribute('transform', `translate(${pipe.x}, 0)`);
+                    
+                    // Remove pipes that are off-screen
+                    if (pipe.x + pipeWidth < 0) {
+                        pipesContainer.removeChild(pipe.topPipe);
+                        pipesContainer.removeChild(pipe.bottomPipe);
+                        pipes.splice(i, 1);
+                        i--;
+                    }
+                }
+            }
+            
+            // Clear all pipes
+            function clearPipes() {
+                pipes.forEach(pipe => {
+                    if (pipesContainer.contains(pipe.topPipe)) {
+                        pipesContainer.removeChild(pipe.topPipe);
+                    }
+                    if (pipesContainer.contains(pipe.bottomPipe)) {
+                        pipesContainer.removeChild(pipe.bottomPipe);
+                    }
+                });
+                pipes = [];
+                passedPipes = [];
+            }
+            
+            // Update player position
+            function updatePlayerPosition() {
+                // Constrain player within game boundaries
+                playerY = Math.max(20, Math.min(playerY, gameHeight - 30));
+                player.setAttribute('transform', `translate(80, ${playerY})`);
+            }
+            
+            // Handle user input
+            function handleKeyDown(e) {
+                if ((e.code === 'Space' || e.key === ' ') && gameRunning) {
+                    flap();
+                    e.preventDefault(); // Evita comportamento padrão da barra de espaço
+                }
+            }
+            
+            function handleClick() {
+                if (gameRunning) {
+                    flap();
+                }
+            }
+            
+            function flap() {
+                velocity = -4; // Reduzido para 4 conforme solicitado
+            }
+            
+            // Check collisions
+            function checkCollisions() {
+                // Player hitbox (simplify to a circle)
+                const playerRadius = 15;
+                const playerX = 80;
+                
+                // Check collision with floor/ceiling
+                if (playerY <= 20 || playerY >= gameHeight - 30) {
+                    return true;
+                }
+                
+                // Check collision with pipes
+                for (const pipe of pipes) {
+                    // Only check pipes that are in range of the player
+                    if (pipe.x > playerX + playerRadius || pipe.x + pipeWidth < playerX - playerRadius) {
+                        continue;
+                    }
+                    
+                    // Check collision with top pipe
+                    if (playerY - playerRadius < pipe.topHeight) {
+                        return true;
+                    }
+                    
+                    // Check collision with bottom pipe
+                    if (playerY + playerRadius > gameHeight - (gameHeight - pipe.topHeight - pipeGap)) {
+                        return true;
+                    }
+                }
+                
+                return false;
+            }
+            
+            // Update score
+            function updateScore() {
+                for (const pipe of pipes) {
+                    if (!pipe.passed && pipe.x + pipeWidth < 80) {
+                        pipe.passed = true;
+                        passedPipes.push(pipe);
+                        score++;
+                        scoreDisplay.textContent = score;
+                    }
+                }
+            }
+            
+            // End game
+            function endGame() {
+                gameRunning = false;
+                clearInterval(pipeInterval);
+                cancelAnimationFrame(animationFrame);
+                stopBubbles();
+                
+                finalScoreDisplay.textContent = `Pontuação: ${score}`;
+                gameOverScreen.style.display = 'flex';
+            }
+            
+            // Initialize the game
+            init();
+        });
+    </script>
+</body>
+</html>
